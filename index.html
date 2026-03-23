@@ -41,16 +41,41 @@ canvas { display:block; margin:auto; background:#141432; }
     padding:20px;
     font-size:18px;
 }
+
+/* NEW BUTTONS */
+#pauseBtn {
+    position:absolute;
+    top:20px;
+    right:20px;
+    padding:10px 15px;
+    font-size:16px;
+}
+
+#restartBtn {
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+    padding:15px 25px;
+    font-size:20px;
+    display:none;
+}
 </style>
+    <a href="https://geebob-glitch.github.io/webs/" target="_blank">
+<br>Check out my websites here:
+</a>
 </head>
 
 <body>
 
 <canvas id="gameCanvas" width="800" height="600"></canvas>
 
+<button id="pauseBtn" color:green;>PAUSE</button>
+<button id="restartBtn" color:green; >RESTART</button>
+
 <div id="controls">
   <div id="joystick"><div id="stick"></div></div>
-  <button id="boostBtn">BOOST</button>
+  <button id="boostBtn" color:green; >BOOST</button>
 </div>
 
 <script>
@@ -61,8 +86,6 @@ class Player {
         this.x=x; this.y=y; this.radius=20;
         this.speed=4;
         this.bullets=[];
-        this.rapid_fire=false;
-        this.rapid_fire_end=0;
         this.last_shot=0;
     }
 }
@@ -78,7 +101,7 @@ class Bullet {
 /* --------- ENEMY --------- */
 class Enemy {
     constructor(x,y,speed){
-        this.x=x; this.y=y; this.speed=speed; this.radius=12; this.health=1;
+        this.x=x; this.y=y; this.speed=speed; this.radius=12;
     }
     moveToward(player){
         let dx=player.x-this.x;
@@ -91,36 +114,23 @@ class Enemy {
     }
 }
 
-/* --------- POWERUP --------- */
-class Powerup {
-    constructor(x,y,type){
-        this.x=x; this.y=y; this.radius=10;
-        this.type=type;
-    }
-    apply(player){
-        if(this.type=="rapid"){
-            player.rapid_fire=true;
-            player.rapid_fire_end=Date.now()+5000;
-        } else {
-            score+=50;
-        }
-    }
-    getColor(){
-        return this.type=="rapid"?"orange":"yellow";
-    }
-}
-
 /* --------- SETUP --------- */
 const canvas=document.getElementById("gameCanvas");
 const ctx=canvas.getContext("2d");
 
-let player=new Player(400,300);
-let enemies=[], powerups=[];
-let score=0, combo=0, combo_timer=0;
-let start_time=Date.now();
-let game_over=false;
-let difficulty=0;
-let enemy_spawn_counter=0;
+let player, enemies, score, start_time, game_over, difficulty, enemy_spawn_counter;
+let paused=false;
+
+function initGame(){
+    player=new Player(400,300);
+    enemies=[];
+    score=0;
+    start_time=Date.now();
+    game_over=false;
+    difficulty=0;
+    enemy_spawn_counter=0;
+}
+initGame();
 
 /* --------- JOYSTICK --------- */
 let joyX=0, joyY=0;
@@ -179,6 +189,23 @@ canvas.addEventListener("touchmove",e=>{
 
 canvas.addEventListener("touchend",()=>shooting=false);
 
+/* --------- BUTTONS --------- */
+const pauseBtn=document.getElementById("pauseBtn");
+const restartBtn=document.getElementById("restartBtn");
+
+pauseBtn.onclick=()=>{
+    if(game_over) return;
+    paused=!paused;
+    pauseBtn.innerText=paused?"RESUME":"PAUSE";
+};
+
+restartBtn.onclick=()=>{
+    initGame();
+    paused=false;
+    pauseBtn.innerText="PAUSE";
+    restartBtn.style.display="none";
+};
+
 /* --------- SPAWN --------- */
 function spawnEnemy(){
     let side=["top","bottom","left","right"][Math.random()*4|0];
@@ -196,9 +223,8 @@ function spawnEnemy(){
 function gameLoop(){
 requestAnimationFrame(gameLoop);
 
-if(!game_over){
+if(!game_over && !paused){
 
-    // movement
     let dx=joyX*player.speed;
     let dy=joyY*player.speed;
 
@@ -207,7 +233,6 @@ if(!game_over){
     player.x=Math.max(10,Math.min(player.x+dx,790));
     player.y=Math.max(10,Math.min(player.y+dy,590));
 
-    // shooting
     let now=Date.now();
     if(shooting && now-player.last_shot>50){
         let dxm=touchX-player.x;
@@ -222,22 +247,20 @@ if(!game_over){
         player.last_shot=now;
     }
 
-    // bullets
     player.bullets.forEach(b=>{
         b.x+=b.vx;
         b.y+=b.vy;
     });
 
-    // enemies
     enemies.forEach(e=>{
         e.moveToward(player);
 
         if(Math.hypot(player.x-e.x,player.y-e.y)<40){
             game_over=true;
+            restartBtn.style.display="block";
         }
     });
 
-    // spawn
     enemy_spawn_counter++;
     if(enemy_spawn_counter>80){
         enemy_spawn_counter=0;
@@ -273,10 +296,15 @@ player.bullets.forEach(b=>{
 ctx.fillStyle="white";
 ctx.fillText("Score: "+score,10,20);
 
+if(paused && !game_over){
+    ctx.font="30px sans-serif";
+    ctx.fillText("PAUSED",320,300);
+}
+
 if(game_over){
     ctx.fillStyle="red";
     ctx.font="30px sans-serif";
-    ctx.fillText("YOU DIED",300,300);
+    ctx.fillText("Miracles are possible, this ^is one of them!",300,260);
 }
 
 }
